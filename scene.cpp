@@ -41,22 +41,22 @@ SceneUbo createSceneUniformBuffer()
     const int x_count = 11, y_count = 11;
     for (int a = -x_count; a < x_count; ++a) {
         for (int b = -y_count; b < y_count; ++b) {
-            float choose_mat = random();
-            glm::vec3 center(a + 0.9f * random(), 0.2f, b + 0.9f * random());
+            float choose_mat = utils::random();
+            glm::vec3 center(a + 0.9f * utils::random(), 0.2f, b + 0.9f * utils::random());
             if ((center - glm::vec3(4, 0.2f, 0)).length() > 0.9f) {
                 spheres[i] = { center, 0.2f };
                 auto& mat = materials[i];
                 ++i;
                 if (choose_mat < 0.8f) {
-                    mat.albedo = glm::vec3(random() * random(),
-                                           random() * random(),
-                                           random() * random());
+                    mat.albedo = glm::vec3(utils::random() * utils::random(),
+                                           utils::random() * utils::random(),
+                                           utils::random() * utils::random());
                     mat.type = Diffuse;
                 } else if (choose_mat < 0.95f) {
-                    mat.albedo = glm::vec3(0.5f * (1 + random()),
-                                           0.5f * (1 + random()),
-                                           0.5f * (1 + random()));
-                    mat.prop = 0.5f * random();
+                    mat.albedo = glm::vec3(0.5f * (1 + utils::random()),
+                                           0.5f * (1 + utils::random()),
+                                           0.5f * (1 + utils::random()));
+                    mat.prop = 0.5f * utils::random();
                     mat.type = Metal;
                 } else {
                     mat.type = Dielectric;

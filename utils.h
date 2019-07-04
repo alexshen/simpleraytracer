@@ -3,6 +3,11 @@
 
 #pragma once
 
+namespace utils
+{
+
 float random();
+
+}
 
 #endif // UTILS_H
