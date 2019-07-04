@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cstdlib>
 
-#define BLOCK_REFINE
+//#define BLOCK_REFINE
 
 FragmentShaderRenderer::FragmentShaderRenderer()
     : m_ubo(0)
@@ -14,7 +14,7 @@ FragmentShaderRenderer::FragmentShaderRenderer()
     , m_iterNum(1)
     , m_totalIterNum(100)
     , m_windowOrigin(0)
-    , m_windowSize(32, 32)
+    , m_windowSize(64, 64)
 {
 }
 
@@ -58,24 +58,27 @@ void FragmentShaderRenderer::init(int width, int height)
     glUniformBlockBinding(m_prog->getHandle(), index, 0);
     m_prog->setUniform("NumSpheres", sceneUbo.numSpheres);  
 
-#ifdef BLOCK_REFINE
     glGenFramebuffers(1, &m_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
     glGenTextures(1, &m_colorTex);
     glBindTexture(GL_TEXTURE_2D, m_colorTex);
+#ifdef BLOCK_REFINE
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, m_width, m_height);
+#else
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16, m_width, m_height);
+#endif
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, m_colorTex, 0);
     glDrawBuffer(GL_COLOR_ATTACHMENT0);
     GL_CHECK_FRAMEBUFFER_STATUS;
     glClear(GL_COLOR_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-#else
+
+#ifndef BLOCK_REFINE
     m_prog->setUniform("IterTotal", m_totalIterNum);
     m_prog->setUniform("IterNum", m_iterNum);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
-    glClear(GL_COLOR_BUFFER_BIT);
 #endif
 }
 
@@ -95,14 +98,15 @@ void FragmentShaderRenderer::render()
             m_windowOrigin.y += m_windowSize.y;
         }
     }
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer(0, 0, m_width, m_height, 0, 0, m_width, m_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 #else
     if (m_curIter < m_totalIterNum) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
         m_prog->setUniform("IterStart", m_curIter);
         m_curIter += m_iterNum;
         m_quad->render(*m_prog);
     }
 #endif
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, m_width, m_height, 0, 0, m_width, m_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }

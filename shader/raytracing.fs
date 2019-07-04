@@ -274,6 +274,6 @@ void main()
         color += raytrace(randomInUnitRect());
     }
 
-    FragColor = vec4(color / IterTotal, 1);
+    FragColor = vec4(color / NumSamples, 1);
 #endif
 }
