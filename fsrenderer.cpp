@@ -105,7 +105,7 @@ void FragmentShaderRenderer::render()
             m_windowOrigin.y += m_windowSize.y;
         }
 
-        if (m_windowOrigin.y >= height) {
+        if (m_windowOrigin.y >= m_height) {
             glEndQuery(GL_TIME_ELAPSED);
             m_queryEnded = true;
         }
