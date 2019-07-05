@@ -22,6 +22,20 @@ const int TypeDiffuse = 0;
 const int TypeMetal = 1;
 const int TypeDielectric = 2;
 
+struct AABB {
+    vec4 min;
+    vec4 max;
+};
+
+struct Node {
+    AABB aabb;
+
+    int left;
+    int right;
+    int firstObjIndex;
+    int numObjects;
+};
+
 struct Material {
     // xyz = albeo color
     // w = material type
@@ -33,8 +47,10 @@ struct Material {
 };
 
 const int MaxObjects = 512;
+const int MaxNodes = 640;
 
 layout(std140) uniform Scene {
+    Node nodes[MaxNodes];
     vec4 spheres[MaxObjects];
     // xyz, material color
     // w, material type
@@ -124,16 +140,113 @@ struct HitRecord {
     Material material;
 };
 
+bool intersect(Ray r, AABB volume)
+{
+    const float epsilon = 1e-6;
+    const int size = 3;
+    const int side_neg = 0;
+    const int side_pos = 1;
+    const int side_middle = 2;
+
+    // fast ray box intersection, Graphic Gems I
+    int quadrant[size];
+    // the edges to test against intersection
+    float edges[size];
+    float t[size];
+    bool inside = true;
+
+    // for each axis, find candidate edges
+    for (int i = 0; i < size; ++i) {
+        if (r.origin[i] < volume.min[i]) {
+            quadrant[i] = side_neg;
+            edges[i] = volume.min[i];
+            inside = false;
+        } else if (r.origin[i] > volume.max[i]) {
+            quadrant[i] = side_pos;
+            edges[i] = volume.max[i];
+            inside = false;
+        } else {
+            quadrant[i] = side_middle;
+        }
+    }
+
+    // origin is outside of the bounding volume, check intersection
+    if (!inside) {
+        for (int i = 0; i < size; ++i) {
+            if (quadrant[i] != side_middle && abs(r.dir[i]) > epsilon) {
+                t[i] = (edges[i] - r.origin[i]) / r.dir[i];
+            } else {
+                // no intersection;
+                t[i] = -1.0f;
+            }
+        }
+
+        // find the intersection axis
+        int axis = 0;
+        for (int i = 1; i < size; ++i) {
+            if (t[i] > t[axis]) {
+                axis = i;
+            }
+        }
+        if (t[axis] < 0) {
+            return false;
+        }
+
+        // check if the intersection point is actually valid on other axes
+        for (int i = 0; i < size; ++i) {
+            if (i != axis) {
+                float coord = r.origin[i] + t[axis] * r.dir[i];
+                if (coord <= volume.min[i] || coord >= volume.max[i]) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+const int MaxIndices = 128;
+
+int[MaxIndices] findPossibleHits(Ray ray, out int num)
+{
+    num = 0;
+    int hits[MaxIndices];
+    int stack[64];
+    stack[0] = 0;
+    int i = 1;
+
+    while (i > 0) {
+        --i;
+        Node node = nodes[stack[i]];
+        if (intersect(ray, node.aabb)) {
+            // leaf node
+            if (node.left == -1) {
+                for (int j = 0; j < node.numObjects; ++j) {
+                    hits[num++] = node.firstObjIndex + j;
+                }
+            } else {
+                stack[i++] = node.right;
+                stack[i++] = node.left;
+            }
+        }
+    }
+    return hits;
+}
+
 const float Infinity = intBitsToFloat(0x7f800000);
 bool hit(Ray ray, float tmin, float tmax, out HitRecord rec)
 {
+    int num;
+    int hits[MaxIndices] = findPossibleHits(ray, num);
+
     int sphereIndex = -1;
     float minT = Infinity;
-    for (int i = 0; i < NumSpheres; ++i) {
-        float t = intersectSphere(spheres[i], ray, tmin, tmax);
+    for (int i = 0; i < num; ++i) {
+        float t = intersectSphere(spheres[hits[i]], ray, tmin, tmax);
         if (t != -1 && minT > t) {
             minT = t;
-            sphereIndex = i;
+            sphereIndex = hits[i];
         }
     }
     if (sphereIndex != -1) {

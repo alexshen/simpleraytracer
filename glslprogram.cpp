@@ -1,6 +1,7 @@
 #include "glslprogram.h"
 
 #include <fstream>
+#include <iostream>
 
 using std::ifstream;
 using std::ios;
@@ -193,11 +194,7 @@ void GLSLProgram::compileShader(const string &source,
             msg = "Shader compilation failed.\n";
         }
         msg += logString;
-
-        std::vector<char> buf(1024 * 4);
-        glGetShaderSource(shaderHandle, buf.size(), nullptr, buf.data());
-        printf("%s\n", buf.data());
-
+        std::cout << msg << std::endl;
         throw GLSLProgramException(msg);
 
     } else {

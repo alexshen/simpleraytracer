@@ -8,15 +8,17 @@
 
 int main(int argc, char* argv[])
 {
-    FragmentShaderRenderer render;
     try {
+        FragmentShaderRenderer render;
         Application app(render);
         if (app.init()) {
             app.run();
             return 0;
         }
-    } catch (std::exception& e) {
+    } catch (const std::exception& e) {
         std::cerr << e.what() << "\n";
+    } catch (...) {
+        std::cerr << "unknown exception\n";
     }
     return 1;
 }

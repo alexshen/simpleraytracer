@@ -25,7 +25,15 @@ set(SOURCES
     scene.h
     utils.cpp
     utils.h
+    bvh_node.cpp
+    bvh_node.h
+    bvh_object.h
+    aabb.h
+    object.cpp
+    object.h
+    sphere_object.h
 
+    glad/glad.h
     glad/gl_core_4_3.c
     glad/gl_core_4_3.h
     )

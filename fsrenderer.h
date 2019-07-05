@@ -6,6 +6,7 @@
 #include "renderer.h"
 #include "glslprogram.h"
 #include "fullscreenquad.h"
+
 #include <glm/glm.hpp>
 #include <memory>
 
@@ -18,6 +19,8 @@ public:
     void init(int width, int height);
     void render();
 private:
+    void checkQueryEnd();
+
     std::unique_ptr<GLSLProgram> m_prog;
     std::unique_ptr<FullScreenQuad> m_quad;
     glm::vec2 m_windowOrigin;
@@ -29,7 +32,9 @@ private:
     GLuint m_colorTex;
     int m_curIter;
     int m_iterNum;
-    int m_totalIterNum;
+    int m_numSamples;
+    GLuint m_timeQuery;
+    bool m_queryEnded;
 };
 
 #endif // FS_RENDERER_H
