@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 
-//#define BLOCK_REFINE
+#define BLOCK_REFINE
 
 FragmentShaderRenderer::FragmentShaderRenderer()
     : m_ubo(0)
