@@ -32,7 +32,6 @@ set(SOURCES
     utils.h
     bvh_node.cpp
     bvh_node.h
-    bvh_object.h
     aabb.h
     object.cpp
     object.h
