@@ -140,86 +140,38 @@ struct HitRecord {
     Material material;
 };
 
-bool intersect(Ray r, AABB volume)
+const float Infinity = intBitsToFloat(0x7f800000);
+
+bool intersect(Ray r, AABB volume, float tmin, float tmax)
 {
-    const float epsilon = 1e-6;
-    const int size = 3;
-    const int side_neg = 0;
-    const int side_pos = 1;
-    const int side_middle = 2;
-
-    // fast ray box intersection, Graphic Gems I
-    int quadrant[size];
-    // the edges to test against intersection
-    float edges[size];
-    float t[size];
-    bool inside = true;
-
-    // for each axis, find candidate edges
-    for (int i = 0; i < size; ++i) {
-        if (r.origin[i] < volume.min[i]) {
-            quadrant[i] = side_neg;
-            edges[i] = volume.min[i];
-            inside = false;
-        } else if (r.origin[i] > volume.max[i]) {
-            quadrant[i] = side_pos;
-            edges[i] = volume.max[i];
-            inside = false;
-        } else {
-            quadrant[i] = side_middle;
+    for (int i = 0; i < 3; ++i) {
+        float t0 = (volume.min[i] - r.origin[i]) / r.dir[i];
+        float t1 = (volume.max[i] - r.origin[i]) / r.dir[i];
+        if (r.dir[i] < 0) {
+            float tmp = t0;
+            t0 = t1;
+            t1 = tmp;
         }
+        tmin = max(tmin, t0);
+        tmax = min(tmax, t1);
     }
-
-    // origin is outside of the bounding volume, check intersection
-    if (!inside) {
-        for (int i = 0; i < size; ++i) {
-            if (quadrant[i] != side_middle && abs(r.dir[i]) > epsilon) {
-                t[i] = (edges[i] - r.origin[i]) / r.dir[i];
-            } else {
-                // no intersection;
-                t[i] = -1.0f;
-            }
-        }
-
-        // find the intersection axis
-        int axis = 0;
-        for (int i = 1; i < size; ++i) {
-            if (t[i] > t[axis]) {
-                axis = i;
-            }
-        }
-        if (t[axis] < 0) {
-            return false;
-        }
-
-        // check if the intersection point is actually valid on other axes
-        for (int i = 0; i < size; ++i) {
-            if (i != axis) {
-                float coord = r.origin[i] + t[axis] * r.dir[i];
-                if (coord <= volume.min[i] || coord >= volume.max[i]) {
-                    return false;
-                }
-            }
-        }
-    }
-
-    return true;
+    return tmin < tmax;
 }
 
-const int MaxIndices = 128;
+const int MaxIndices = 64;
 
-int[MaxIndices] findPossibleHits(Ray ray, out int num)
+int[MaxIndices] findPossibleHits(Ray ray, float tmin, float tmax, out int num)
 {
     num = 0;
     int hits[MaxIndices];
-    int stack[64];
+    int stack[32];
     stack[0] = 0;
     int i = 1;
 
     while (i > 0) {
         --i;
         Node node = nodes[stack[i]];
-        if (intersect(ray, node.aabb)) {
+        if (intersect(ray, node.aabb, tmin, tmax)) {
             // leaf node
             if (node.left == -1) {
                 for (int j = 0; j < node.numObjects; ++j) {
@@ -234,14 +186,21 @@ int[MaxIndices] findPossibleHits(Ray ray, out int num)
     return hits;
 }
 
-const float Infinity = intBitsToFloat(0x7f800000);
 bool hit(Ray ray, float tmin, float tmax, out HitRecord rec)
 {
-    int num;
-    int hits[MaxIndices] = findPossibleHits(ray, num);
-
     int sphereIndex = -1;
     float minT = Infinity;
+#ifdef BRUTE_FORCE_HIT_TEST
+    for (int i = 0; i < NumSpheres; ++i) {
+        float t = intersectSphere(spheres[i], ray, tmin, tmax);
+        if (t != -1 && minT > t) {
+            minT = t;
+            sphereIndex = i;
+        }
+    }
+#else
+    int num;
+    int hits[MaxIndices] = findPossibleHits(ray, tmin, tmax, num);
     for (int i = 0; i < num; ++i) {
         float t = intersectSphere(spheres[hits[i]], ray, tmin, tmax);
         if (t != -1 && minT > t) {
@@ -249,6 +208,7 @@ bool hit(Ray ray, float tmin, float tmax, out HitRecord rec)
             sphereIndex = hits[i];
         }
     }
+#endif
     if (sphereIndex != -1) {
         rec.pt = ray.origin + minT * ray.dir;
         rec.normal = normalize(rec.pt - spheres[sphereIndex].xyz);
@@ -315,6 +275,15 @@ bool dielectricScatter(vec3 rayDir, HitRecord rec, out vec3 attenuation, out vec
     return true;
 }
 
+#ifdef DEBUG_BVH_HITS
+vec3 raytrace(vec2 jitter)
+{
+    Ray ray = Ray(CameraPos, getRayDir(jitter));
+    int num;
+    int hits[MaxIndices] = findPossibleHits(ray, 0, Infinity, num);
+    return vec3(float(num) / 32);
+}
+#else // DEBUG_BVH_HITS
 vec3 raytrace(vec2 jitter)
 {
     const int MaxIter = 50;
@@ -357,6 +326,7 @@ vec3 raytrace(vec2 jitter)
     color *= getBackgroundColor(ray.dir);
     return color;
 }
+#endif // !DEBUG_BVH_HITS
 
 void main()
 {
@@ -368,6 +338,7 @@ void main()
     g_halfImageSize.x = g_halfImageSize.y * ScreenSize.x / ScreenSize.y;
 
     vec3 color = vec3(0);
+
 #ifdef BLOCK_REFINE
     g_seed = 0;
     if (all(greaterThanEqual(gl_FragCoord.xy, Window.xy)) && 
@@ -380,7 +351,7 @@ void main()
     } else {
         discard;
     }
-#else
+#else // !BLOCK_REFINE
     g_seed = IterStart * 17 + IterNum;;
     int iterEnd = min(NumSamples, IterStart + IterNum);
     for (int i = IterStart; i < iterEnd; ++i) {
@@ -388,5 +359,5 @@ void main()
     }
 
     FragColor = vec4(color / NumSamples, 1);
-#endif
+#endif // !BLOCK_REFINE
 }
