@@ -3,25 +3,28 @@
 
 #pragma once
 
+#include "renderer.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <memory>
 
 class Renderer;
+struct RenderConfig;
 
 class Application
 {
 public:
-    Application(Renderer& renderer);
+    Application();
     ~Application();
 
-    bool init();
+    bool init(const RenderConfig& config);
     void run();
 
 private:
     static void onKeyPressedCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     void onKeyPressed(int key, int action);
 
-    Renderer& m_renderer;
+    std::unique_ptr<Renderer> m_renderer;
     GLFWwindow* m_window;
 };
 

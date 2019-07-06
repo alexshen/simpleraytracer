@@ -8,13 +8,18 @@ find_package( glm CONFIG REQUIRED )
 find_package( glfw3 CONFIG REQUIRED )
 find_package( OpenGL REQUIRED )
 
+if (WIN32)
+    set(Boost_USE_STATIC_LIBS ON)
+endif()
+
+find_package( Boost COMPONENTS program_options REQUIRED )
+
 set(SOURCES 
     main.cpp
     application.cpp
     application.h
+    renderer.cpp
     renderer.h
-    fsrenderer.cpp
-    fsrenderer.h
     fullscreenquad.cpp
     fullscreenquad.h
     glslprogram.cpp
@@ -47,5 +52,6 @@ add_executable(raytracer
     ${SOURCES}
 )
 
+target_include_directories(raytracer PRIVATE ${Boost_INCLUDE_DIRS})
 target_include_directories(raytracer PRIVATE .)
-target_link_libraries(raytracer PRIVATE glm glfw ${OPENGL_gl_LIBRARY})
+target_link_libraries(raytracer PRIVATE glm glfw ${Boost_LIBRARIES} ${OPENGL_gl_LIBRARY})

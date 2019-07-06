@@ -1,6 +1,6 @@
 #include "application.h"
-#include "renderer.h"
 #include "glutils.h"
+#include "renderer.h"
 
 #include <glad/glad.h>
 #include <iostream>
@@ -11,9 +11,8 @@ namespace
     const char* const AppName = "raytracer";
 }
 
-Application::Application(Renderer& render)
-    : m_renderer(render)
-    , m_window(nullptr)
+Application::Application()
+    : m_window(nullptr)
 {
 }
 
@@ -22,7 +21,7 @@ Application::~Application()
     glfwTerminate();
 }
 
-bool Application::init()
+bool Application::init(const RenderConfig& config)
 {
     if (!glfwInit()) {
         std::cerr << "failed to initialize glfw\n";
@@ -44,7 +43,7 @@ bool Application::init()
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 #endif
 
-    m_window = glfwCreateWindow(800, 600, AppName, nullptr, nullptr);
+    m_window = glfwCreateWindow(config.width, config.height, AppName, nullptr, nullptr);
     if (!m_window) {
         const char* error;
         glfwGetError(&error);
@@ -69,10 +68,10 @@ bool Application::init()
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, NULL, GL_FALSE);
 #endif
 
-    int width, height;
-    glfwGetFramebufferSize(m_window, &width, &height);
-    glViewport(0, 0, width, height);
-    m_renderer.init(width, height);
+    RenderConfig tmpConfig = config;
+    glfwGetFramebufferSize(m_window, &tmpConfig.width, &tmpConfig.height);
+    glViewport(0, 0, tmpConfig.width, tmpConfig.height);
+    m_renderer = std::make_unique<Renderer>(tmpConfig);
     return true;
 }
 
@@ -98,7 +97,7 @@ void Application::run()
 
         glfwPollEvents();
 
-        m_renderer.render();
+        m_renderer->render();
         glFinish();
         glfwSwapBuffers(m_window);
 
