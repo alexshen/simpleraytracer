@@ -89,9 +89,8 @@ UboRenderInput::UboRenderInput(const Scene& scene)
     Buffer buffer;
     flatten(scene.root.get(), buffer);
 
-    GLuint ubo;
-    glGenBuffers(1, &ubo);
-    glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+    glGenBuffers(1, &m_ubo);
+    glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
 
     constexpr int TotalSize = sizeof(buffer.nodes) + sizeof(buffer.objects) + sizeof(buffer.materials);
     glBufferData(GL_UNIFORM_BUFFER, TotalSize, nullptr, GL_STATIC_DRAW);
