@@ -32,6 +32,11 @@ set(SOURCES
     object.cpp
     object.h
     sphere_object.h
+    uborenderinput.cpp
+    uborenderinput.h
+    texrenderinput.cpp
+    texrenderinput.h
+    renderinput.h
 
     glad/glad.h
     glad/gl_core_4_3.c

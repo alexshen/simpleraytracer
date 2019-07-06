@@ -1,21 +1,30 @@
 #include "fsrenderer.h"
 #include "glutils.h"
 #include "scene.h" 
+#include "uborenderinput.h"
+#include "texrenderinput.h"
 #include <cstring>
 #include <cstdlib>
 #include <iostream>
 
 //#define BLOCK_REFINE
+#define UBO_INPUT 0
+#define TEX_INPUT 1
+#define RENDER_INPUT 1
 
 FragmentShaderRenderer::FragmentShaderRenderer()
-    : m_ubo(0)
+    : m_prog()
+    , m_quad()
+    , m_renderInput()
+    , m_windowOrigin(0)
+    , m_windowSize(64, 64)
+    , m_width(0)
+    , m_height(0)
     , m_fbo(0)
     , m_colorTex(0)
     , m_curIter(0)
     , m_iterNum(1)
     , m_numSamples(100)
-    , m_windowOrigin(0)
-    , m_windowSize(64, 64)
     , m_timeQuery(0)
     , m_queryEnded(false)
 {
@@ -23,7 +32,6 @@ FragmentShaderRenderer::FragmentShaderRenderer()
 
 FragmentShaderRenderer::~FragmentShaderRenderer()
 {
-    glDeleteBuffers(1, &m_ubo);
     glDeleteFramebuffers(1, &m_fbo);
     glDeleteTextures(1, &m_colorTex);
     glDeleteQueries(1, &m_timeQuery);
@@ -40,6 +48,12 @@ void FragmentShaderRenderer::init(int width, int height)
 #ifdef BLOCK_REFINE
     m_prog->define("BLOCK_REFINE");
 #endif
+    //m_prog->define("BRUTE_FORCE_HIT_TEST");
+    //m_prog->define("DEBUG_BVH_HITS");
+#if RENDER_INPUT == UBO_INPUT
+    m_prog->define("UBO_INPUT");
+#endif
+
     m_prog->compileShader("shader/passthru.vs");
     m_prog->compileShader("shader/raytracing.fs");
     m_prog->link();
@@ -55,13 +69,15 @@ void FragmentShaderRenderer::init(int width, int height)
     m_prog->setUniform("NumSamples", m_numSamples);
     GL_CHECK_ERROR;
 
-    auto sceneUbo = createSceneUniformBuffer();
-    m_ubo = sceneUbo.handle;
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_ubo);
+    auto scene = createScene();
+#if RENDER_INPUT == UBO_INPUT
+    m_renderInput = std::make_unique<UboRenderInput>(scene);
+#else
+    m_renderInput = std::make_unique<TextureRenderInput>(scene);
+#endif
+    m_renderInput->setInput(*m_prog);
 
-    auto index = glGetUniformBlockIndex(m_prog->getHandle(), "Scene");
-    glUniformBlockBinding(m_prog->getHandle(), index, 0);
-    m_prog->setUniform("NumSpheres", sceneUbo.numSpheres);  
+    m_prog->setUniform("NumSpheres", (int)scene.objects.size());  
 
     glGenFramebuffers(1, &m_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);

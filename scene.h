@@ -3,14 +3,15 @@
 
 #pragma once
 
-#include <glad/glad.h>
+#include "bvh_node.h"
+#include "sphere_object.h"
 
-struct SceneUbo
+struct Scene
 {
-    GLuint handle;
-    int numSpheres;
+    std::vector<SphereObject> objects;
+    std::unique_ptr<bvh_node> root;
 };
 
-SceneUbo createSceneUniformBuffer();
+Scene createScene();
 
 #endif // SCENE_H

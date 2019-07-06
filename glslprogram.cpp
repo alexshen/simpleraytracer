@@ -8,6 +8,7 @@ using std::ios;
 using std::string;
 
 #include <sstream>
+#include <algorithm>
 #include <sys/stat.h>
 
 namespace GLSLShaderInfo {
@@ -136,8 +137,8 @@ void GLSLProgram::compileShader(const string &source,
     // find the version line
     auto versionPos = source.find("#version");
     if (versionPos != string::npos) {
-        const char* sources[3];
-        int lens[3];
+        const char* sources[4];
+        int lens[4];
         int i = 0;
 
         sources[i] = source.c_str();
@@ -157,6 +158,14 @@ void GLSLProgram::compileShader(const string &source,
         }
         sources[i] = defineSource.c_str();
         lens[i] = defineSource.size();
+        ++i;
+
+        // make sure the line no is correctly reported in the shader log
+        int lineNo = std::count(source.begin(), source.begin() + lens[0], '\n') + 2;
+        string lineDirective = "#line ";
+        lineDirective += std::to_string(lineNo);
+        sources[i] = lineDirective.c_str();
+        lens[i] = lineDirective.size();
         ++i;
 
         sources[i] = source.c_str() + versionEnd + 1;
