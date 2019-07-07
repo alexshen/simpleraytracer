@@ -21,7 +21,8 @@ enum RenderMode
 enum ShaderInput
 {
     UniformBuffer,
-    Texture
+    Texture,
+    ShaderStorageBuffer
 };
 
 enum HitTest

@@ -17,10 +17,14 @@ uniform int NumSpheres;
 uniform int IterStart;
 uniform int IterNum;
 
+#ifdef TEXTURE_INPUT
+
 uniform sampler1D NodeAABBTex;
 uniform isampler1D NodeDataTex;
 uniform sampler1D ObjectTex;
 uniform sampler1D MaterialTex;
+
+#endif
 
 const float Infinity = intBitsToFloat(0x7f800000);
 
@@ -53,6 +57,8 @@ struct Material {
     float prop;
 };
 
+#if defined(UBO_INPUT)
+
 const int MaxObjects = 512;
 const int MaxNodes = 640;
 
@@ -63,6 +69,20 @@ layout(std140) uniform Scene {
     // w, material type
     Material materials[MaxObjects];
 };
+
+#elif defined(SSBO_INPUT)
+
+layout(std430, binding = 0) buffer NodeBuffer {
+    Node nodes[];
+};
+layout(std430, binding = 1) buffer ObjectBuffer {
+    vec4 spheres[];
+};
+layout(std430, binding = 2) buffer MaterialBuffer {
+    Material materials[];
+};
+
+#endif // SSBO_INPUT
 
 layout(location = 0) out vec4 FragColor;
 
@@ -175,7 +195,7 @@ int[MaxIndices] findPossibleHits(Ray ray, float tmin, float tmax, out int num)
 
     while (i > 0) {
         --i;
-#ifdef UBO_INPUT
+#if defined(UBO_INPUT) || defined(SSBO_INPUT)
         Node node = nodes[stack[i]];
         if (intersect(ray, node.aabb, tmin, tmax)) {
             // leaf node
@@ -224,7 +244,7 @@ bool hit(Ray ray, float tmin, float tmax, out HitRecord rec)
     int num;
     int hits[MaxIndices] = findPossibleHits(ray, tmin, tmax, num);
     for (int i = 0; i < num; ++i) {
-#  ifdef UBO_INPUT
+#  if defined(UBO_INPUT) || defined(SSBO_INPUT)
         vec4 sphere = spheres[hits[i]];
 #  else
         vec4 sphere = texelFetch(ObjectTex, hits[i], 0);
@@ -238,7 +258,7 @@ bool hit(Ray ray, float tmin, float tmax, out HitRecord rec)
 #endif
     if (sphereIndex != -1) {
         rec.pt = ray.origin + minT * ray.dir;
-#ifdef UBO_INPUT
+#if defined(UBO_INPUT) || defined(SSBO_INPUT)
         rec.normal = normalize(rec.pt - spheres[sphereIndex].xyz);
         rec.material = materials[sphereIndex];
 #else

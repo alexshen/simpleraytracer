@@ -3,6 +3,8 @@
 #include "scene.h" 
 #include "uborenderinput.h"
 #include "texrenderinput.h"
+#include "ssborenderinput.h"
+
 #include <cstring>
 #include <cstdlib>
 #include <iostream>
@@ -54,6 +56,11 @@ void Renderer::init(const RenderConfig& config)
     }
     if (config.shaderInput == ShaderInput::UniformBuffer) {
         m_prog->define("UBO_INPUT");
+    } else if (config.shaderInput == ShaderInput::ShaderStorageBuffer) {
+        m_prog->overrideVersion(430);
+        m_prog->define("SSBO_INPUT");
+    } else {
+        m_prog->define("TEXTURE_INPUT");
     }
 
     m_prog->compileShader("shader/passthru.vs");
@@ -74,8 +81,10 @@ void Renderer::init(const RenderConfig& config)
     auto scene = createScene();
     if (config.shaderInput == ShaderInput::UniformBuffer) {
         m_renderInput = std::make_unique<UboRenderInput>(scene);
-    } else {
+    } else if (config.shaderInput == ShaderInput::Texture) {
         m_renderInput = std::make_unique<TextureRenderInput>(scene);
+    } else {
+        m_renderInput = std::make_unique<SsboRenderInput>(scene);
     }
     m_renderInput->setInput(*m_prog);
     m_prog->setUniform("NumSpheres", (int)scene.objects.size());

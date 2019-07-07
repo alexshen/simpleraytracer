@@ -31,7 +31,7 @@ namespace GLSLShaderInfo {
             };
 }
 
-GLSLProgram::GLSLProgram() : handle(0), linked(false) {}
+GLSLProgram::GLSLProgram() : handle(0), linked(false), newVersion(0) {}
 
 GLSLProgram::~GLSLProgram() {
     if (handle == 0) return;
@@ -57,6 +57,11 @@ GLSLProgram::~GLSLProgram() {
 void GLSLProgram::define(const char* def)
 {
     defines.push_back(def);
+}
+
+void GLSLProgram::overrideVersion(int version)
+{
+    newVersion = version;
 }
 
 void GLSLProgram::compileShader(const char *fileName) {
@@ -135,48 +140,70 @@ void GLSLProgram::compileShader(const string &source,
     GLuint shaderHandle = glCreateShader(type);
 
     // find the version line
-    auto versionPos = source.find("#version");
-    if (versionPos != string::npos) {
-        const char* sources[4];
-        int lens[4];
-        int i = 0;
+    const char* sources[4];
+    int lens[4];
+    int i = 0;
 
-        sources[i] = source.c_str();
-        auto versionEnd = source.find('\n', versionPos);
+    string versionStr;
+    size_t versionEnd = 0;
+    auto versionStart = source.find("#version");
+    if (versionStart != string::npos) {
+        versionEnd = source.find('\n', versionStart);
         if (versionEnd != string::npos) {
-            lens[i] = versionEnd + 1;
+            ++versionEnd;
+        }
+        std::istringstream iss(source.substr(versionStart, versionEnd - versionStart));
+        string directive;
+        int versionNo;
+        if (iss >> directive >> versionNo && directive == "#version" && newVersion) {
+            versionStr = source.substr(0, versionStart);
+            versionStr += "#version " + std::to_string(newVersion);
+
+            string rem;
+            getline(iss, rem);
+            versionStr += rem;
         } else {
-            lens[i] = source.size();
+            // no valid version directive
+            versionStr = source.substr(0, versionEnd);
         }
-        ++i;
-
-        string defineSource;
-        for (auto const& def : defines) {
-            defineSource += "#define ";
-            defineSource += def;
-            defineSource += '\n';
+        if (versionEnd != string::npos) {
+            versionStr += '\n';
         }
-        sources[i] = defineSource.c_str();
-        lens[i] = defineSource.size();
-        ++i;
-
-        // make sure the line no is correctly reported in the shader log
-        int lineNo = std::count(source.begin(), source.begin() + lens[0], '\n') + 2;
-        string lineDirective = "#line ";
-        lineDirective += std::to_string(lineNo);
-        sources[i] = lineDirective.c_str();
-        lens[i] = lineDirective.size();
-        ++i;
-
-        sources[i] = source.c_str() + versionEnd + 1;
-        lens[i] = source.size() - versionEnd - 1;
-        ++i;
-
-        glShaderSource(shaderHandle, i, sources, lens);       
-    } else {
-        const char *c_code = source.c_str();
-        glShaderSource(shaderHandle, 1, &c_code, NULL);
+    } else if (newVersion != 0) {
+        versionStr = "#version " + std::to_string(newVersion) + "\n";
     }
+    sources[i] = versionStr.c_str();
+    lens[i] = versionStr.size();
+    ++i;
+
+    // macros
+    string defineSource;
+    for (auto const& def : defines) {
+        defineSource += "#define ";
+        defineSource += def;
+        defineSource += '\n';
+    }
+    sources[i] = defineSource.c_str();
+    lens[i] = defineSource.size();
+    ++i;
+
+    // make sure the line no is correctly reported in the shader log
+    int lineNo = 1;
+    if (versionStart != string::npos) {
+        lineNo = std::count(source.begin(), source.begin() + versionStart, '\n') + 2;
+    }
+    string lineDirective = "#line ";
+    lineDirective += std::to_string(lineNo);
+    lineDirective += '\n';
+    sources[i] = lineDirective.c_str();
+    lens[i] = lineDirective.size();
+    ++i;
+
+    sources[i] = source.c_str() + versionEnd;
+    lens[i] = source.size() - versionEnd;
+    ++i;
+
+    glShaderSource(shaderHandle, i, sources, lens);       
 
     // Compile the shader
     glCompileShader(shaderHandle);

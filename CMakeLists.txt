@@ -36,6 +36,8 @@ set(SOURCES
     object.cpp
     object.h
     sphere_object.h
+    ssborenderinput.cpp
+    ssborenderinput.h
     uborenderinput.cpp
     uborenderinput.h
     texrenderinput.cpp

@@ -35,6 +35,7 @@ private:
     bool linked;
     std::map<std::string, int> uniformLocations;
     std::vector<std::string> defines;
+    int newVersion;
 
     GLint getUniformLocation(const char *name);
 
@@ -53,6 +54,7 @@ public:
     ~GLSLProgram();
 
     void define(const char* def);
+    void overrideVersion(int version);
 
     void compileShader(const char *fileName);
 

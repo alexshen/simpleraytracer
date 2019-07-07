@@ -1,6 +1,5 @@
 #include "application.h"
 #include "glutils.h"
-#include "renderer.h"
 
 #include <glad/glad.h>
 #include <iostream>
@@ -56,6 +55,12 @@ bool Application::init(const RenderConfig& config)
     
     if (!ogl_LoadFunctions()) {
         std::cerr << "failed to load ogl\n";
+        return false;
+    }
+
+    if (config.shaderInput == ShaderInput::ShaderStorageBuffer && 
+        !glfwExtensionSupported("GL_ARB_shader_storage_buffer_object")) {
+        std::cerr << "ssbo input is not supported" << std::endl;
         return false;
     }
 

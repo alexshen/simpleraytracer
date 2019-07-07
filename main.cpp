@@ -42,6 +42,8 @@ std::istream& operator >>(std::istream& in, ShaderInput& mode)
         mode = ShaderInput::UniformBuffer;
     } else if (input == "texture") {
         mode = ShaderInput::Texture;
+    } else if (input == "ssbo") {
+        mode = ShaderInput::ShaderStorageBuffer;
     } else {
         throw po::invalid_option_value("shader input");
     }
@@ -54,7 +56,10 @@ std::ostream& operator <<(std::ostream& out, ShaderInput mode)
         out << "ubo";
     } else if (mode == ShaderInput::Texture) {
         out << "texture";
+    } else if (mode == ShaderInput::ShaderStorageBuffer) {
+        out << "ssbo";
     }
+
     return out;
 }
 
