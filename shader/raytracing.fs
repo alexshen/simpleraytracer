@@ -84,7 +84,34 @@ layout(std430, binding = 2) buffer MaterialBuffer {
 
 #endif // SSBO_INPUT
 
+#ifdef FRAGMENT_SHADER
 layout(location = 0) out vec4 FragColor;
+
+void writeColor(vec4 color)
+{
+    FragColor = color;
+}
+
+vec2 fragCoord()
+{
+    return gl_FragCoord.xy;
+}
+
+#else // FRAGMENT_SHADER
+layout(local_size_x = 64, local_size_y = 64) in;
+layout(rgba16, binding = 0) uniform image2D OutImage;
+
+void writeColor(vec4 color)
+{
+    imageStore(OutImage, gl_GlobalInvocationID.xy, color);
+}
+
+vec2 fragCoord()
+{
+    return gl_GlobalInvocationID.xy + Window.xy;
+}
+
+#endif // !FRAGMENT_SHADER
 
 vec3 g_CameraLookDir;
 vec3 g_CameraUp;
@@ -147,7 +174,7 @@ float intersectSphere(vec4 sphere, Ray ray, float tmin, float tmax)
 
 vec3 getRayDir(vec2 jitter)
 {
-    vec2 p = (jitter + gl_FragCoord.xy) / ScreenSize;
+    vec2 p = (jitter + fragCoord()) / ScreenSize;
     p = p * 2 - 1;
     vec3 dir = g_CameraLookDir * FocalLength + 
                 p.x * g_CameraRight * g_halfImageSize.x + 
@@ -396,13 +423,13 @@ void main()
 
 #ifdef BLOCK_REFINE
     g_seed = 0;
-    if (all(greaterThanEqual(gl_FragCoord.xy, Window.xy)) && 
-        all(lessThan(gl_FragCoord.xy, Window.zw))) {
+    vec2 coord = fragCoord();
+    if (all(greaterThanEqual(coord.xy, Window.xy)) && all(lessThan(coord.xy, Window.zw))) {
         for (int i = 0; i < NumSamples; ++i) {
             color += raytrace(randomInUnitRect());
         }
 
-        FragColor = vec4(color / NumSamples, 1);
+        writeColor(vec4(color / NumSamples, 1));
     } else {
         discard;
     }
@@ -413,6 +440,11 @@ void main()
         color += raytrace(randomInUnitRect());
     }
 
-    FragColor = vec4(color / NumSamples, 1);
+    color /= NumSamples;
+#  ifdef COMPUTE_SHADER
+    // blend with the existing color
+    color += imageLoad(OutImage, gl_GlobalInvocationID.xy).xyz;
+#  endif
+    writeColor(vec4(color, 1));
 #endif // !BLOCK_REFINE
 }

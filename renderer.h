@@ -31,10 +31,17 @@ enum HitTest
     BVH
 };
 
+enum ShaderType
+{
+    FragmentShader,
+    ComputeShader
+};
+
 struct RenderConfig
 {
     int width;
     int height;
+    ShaderType shaderType;
     RenderMode renderMode;
     ShaderInput shaderInput;
     HitTest hitTest;
@@ -53,6 +60,7 @@ private:
     void checkQueryEnd();
 
     std::unique_ptr<GLSLProgram> m_prog;
+    std::unique_ptr<GLSLProgram> m_renderTexProg;
     std::unique_ptr<FullScreenQuad> m_quad;
     std::unique_ptr<RenderInput> m_renderInput;
 
@@ -62,6 +70,7 @@ private:
     int m_width;
     int m_height;
     RenderMode m_renderMode;
+    ShaderType m_shaderType;
 
     GLuint m_fbo;
     GLuint m_colorTex;

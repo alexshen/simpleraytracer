@@ -9,14 +9,26 @@ FullScreenQuad::FullScreenQuad()
         1, -1, 1, 1, -1, 1
     };
 
-    glGenBuffers(1, &m_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);;
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    GLfloat texcoords[] = {
+        0, 0, 1, 0, 0, 1,
+        1, 0, 1, 1, 0, 1
+    };
 
     glGenVertexArrays(1, &m_vao);
     glBindVertexArray(m_vao);
+
+    glGenBuffers(1, &m_vboVertices);
+    glBindBuffer(GL_ARRAY_BUFFER, m_vboVertices);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    glGenBuffers(1, &m_vboTexCoord);
+    glBindBuffer(GL_ARRAY_BUFFER, m_vboTexCoord);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(texcoords), texcoords, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+
     glBindVertexArray(0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -25,7 +37,8 @@ FullScreenQuad::FullScreenQuad()
 FullScreenQuad::~FullScreenQuad()
 {
     glDeleteVertexArrays(1, &m_vao);
-    glDeleteBuffers(1, &m_vbo);
+    glDeleteBuffers(1, &m_vboVertices);
+    glDeleteBuffers(1, &m_vboTexCoord);
 }
 
 void FullScreenQuad::render(GLSLProgram& prog)

@@ -18,7 +18,8 @@ public:
     void render(GLSLProgram& prog);
 private:
     GLuint m_vao;
-    GLuint m_vbo;
+    GLuint m_vboVertices;
+    GLuint m_vboTexCoord;
 };
 
 #endif // FULL_SCREEN_QUAD_H

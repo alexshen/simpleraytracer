@@ -72,7 +72,7 @@ std::istream& operator >>(std::istream& in, HitTest& mode)
     } else if (input == "brute-force") {
         mode = HitTest::BruteForce;
     } else {
-        throw po::invalid_option_value("brute-force");
+        throw po::invalid_option_value("hit test");
     }
     return in;
 }
@@ -87,12 +87,37 @@ std::ostream& operator <<(std::ostream& out, HitTest mode)
     return out;
 }
 
+std::istream& operator >>(std::istream& in, ShaderType& mode)
+{
+    std::string input;
+    in >> input;
+    if (input == "fragment") {
+        mode = ShaderType::FragmentShader;
+    } else if (input == "compute") {
+        mode = ShaderType::ComputeShader;
+    } else {
+        throw po::invalid_option_value("shader");
+    }
+    return in;
+}
+
+std::ostream& operator <<(std::ostream& out, ShaderType mode)
+{
+    if (mode == ShaderType::FragmentShader) {
+        out << "fragment";
+    } else if (mode == ShaderType::ComputeShader) {
+        out << "compute";
+    }
+    return out;
+}
+
 bool parseRenderConfig(int argc, char* argv[], RenderConfig& config)
 {
     po::options_description desc;
     desc.add_options()
         ("help,h", "help message")
         ("render", po::value<RenderMode>(&config.renderMode)->default_value(RenderMode::FullScreenIncremental), "render mode")
+        ("shader", po::value<ShaderType>(&config.shaderType)->default_value(ShaderType::FragmentShader), "shader type")
         ("input", po::value<ShaderInput>(&config.shaderInput)->default_value(ShaderInput::UniformBuffer), "shader input source")
         ("hit-test", po::value<HitTest>(&config.hitTest)->default_value(HitTest::BVH), "hit test method")
         ("debug,d", po::bool_switch(&config.debugEnabled)->default_value(false), "debug bvh hit test")

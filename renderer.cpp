@@ -17,6 +17,7 @@
 Renderer::Renderer(const RenderConfig& config)
     : m_prog()
     , m_quad()
+    , m_fbo(0)
     , m_renderInput()
     , m_windowOrigin(0)
     , m_windowSize(64, 64)
@@ -45,6 +46,8 @@ void Renderer::init(const RenderConfig& config)
     m_quad = std::make_unique<FullScreenQuad>();
 
     m_renderMode = config.renderMode;
+    m_shaderType = config.shaderType;
+
     if (config.renderMode == RenderMode::Blocked) {
         m_prog->define("BLOCK_REFINE");
     }
@@ -62,9 +65,23 @@ void Renderer::init(const RenderConfig& config)
     } else {
         m_prog->define("TEXTURE_INPUT");
     }
+    if (config.shaderType == ShaderType::FragmentShader) {
+        m_prog->define("FRAGMENT_SHADER");
+    } else {
+        m_prog->define("COMPUTE_SHADER");
+        m_renderTexProg = std::make_unique<GLSLProgram>();
+        m_renderTexProg->compileShader("shader/passthru.vs");
+        m_renderTexProg->compileShader("shader/texcolor.fs");
+        m_renderTexProg->link();
+        m_renderTexProg->use();
+        m_renderTexProg->setUniform("MainTex", 0);
+    }
 
     m_prog->compileShader("shader/passthru.vs");
-    m_prog->compileShader("shader/raytracing.fs");
+    m_prog->compileShader("shader/raytracing.fs", 
+                          config.shaderType == ShaderType::FragmentShader
+                            ? GLSLShader::FRAGMENT
+                            : GLSLShader::COMPUTE);
     m_prog->link();
     m_prog->use();
     GL_CHECK_ERROR;
@@ -89,8 +106,6 @@ void Renderer::init(const RenderConfig& config)
     m_renderInput->setInput(*m_prog);
     m_prog->setUniform("NumSpheres", (int)scene.objects.size());
 
-    glGenFramebuffers(1, &m_fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
     glGenTextures(1, &m_colorTex);
     glBindTexture(GL_TEXTURE_2D, m_colorTex);
     if (config.renderMode == RenderMode::Blocked) {
@@ -98,11 +113,18 @@ void Renderer::init(const RenderConfig& config)
     } else {
         glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16, m_width, m_height);
     }
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, m_colorTex, 0);
-    glDrawBuffer(GL_COLOR_ATTACHMENT0);
-    GL_CHECK_FRAMEBUFFER_STATUS;
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    if (config.shaderType == ShaderType::FragmentShader) {
+        glGenFramebuffers(1, &m_fbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, m_colorTex, 0);
+        glDrawBuffer(GL_COLOR_ATTACHMENT0);
+        GL_CHECK_FRAMEBUFFER_STATUS;
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    } else {
+        glBindImageTexture(0, m_colorTex, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA16);
+    }
 
     if (config.renderMode == RenderMode::FullScreenIncremental) {
         m_prog->setUniform("IterNum", m_iterNum);
@@ -122,8 +144,13 @@ void Renderer::render()
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
             auto size = glm::vec2(m_width, m_height);
             auto rightTop = glm::min(m_windowOrigin + m_windowSize, size);
+            m_prog->use();
             m_prog->setUniform("Window", glm::vec4(m_windowOrigin, rightTop));
-            m_quad->render(*m_prog);
+            if (m_shaderType == ShaderType::FragmentShader) {
+                m_quad->render(*m_prog);
+            } else {
+                glDispatchCompute(1, 1, 1);
+            }
 
             m_windowOrigin.x += m_windowSize.x;
             if (m_windowOrigin.x >= m_width) {
@@ -139,6 +166,7 @@ void Renderer::render()
     } else {
         if (m_curIter < m_numSamples) {
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
+            m_prog->use();
             m_prog->setUniform("IterStart", m_curIter);
             m_curIter += m_iterNum;
             m_quad->render(*m_prog);
@@ -151,9 +179,16 @@ void Renderer::render()
     }
     checkQueryEnd();
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer(0, 0, m_width, m_height, 0, 0, m_width, m_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    if (m_shaderType == ShaderType::FragmentShader) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBlitFramebuffer(0, 0, m_width, m_height, 0, 0, m_width, m_height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    } else {
+        m_renderTexProg->use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_colorTex);
+        m_quad->render(*m_renderTexProg);
+    }
 }
 
 void Renderer::checkQueryEnd()

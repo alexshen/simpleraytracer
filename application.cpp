@@ -62,6 +62,11 @@ void Application::init(const RenderConfig& config)
         throw std::runtime_error("ssbo input is not supported");
     }
 
+    if (config.shaderType == ShaderType::ComputeShader && 
+        !glfwExtensionSupported("GL_ARB_compute_shader")) {
+        throw std::runtime_error("compute shader is not supported");
+    }
+
 #ifndef __APPLE__
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(GLUtils::debugCallback, nullptr);
