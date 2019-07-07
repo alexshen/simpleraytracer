@@ -14,13 +14,13 @@ struct RenderConfig;
 class Application
 {
 public:
-    Application();
+    Application(const RenderConfig& config);
     ~Application();
 
-    bool init(const RenderConfig& config);
     void run();
-
 private:
+    void init(const RenderConfig& config);
+
     static void onKeyPressedCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     void onKeyPressed(int key, int action);
 

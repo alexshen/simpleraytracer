@@ -123,11 +123,9 @@ int main(int argc, char* argv[])
     }
 
     try {
-        Application app;
-        if (app.init(config)) {
-            app.run();
-            return 0;
-        }
+        Application app(config);
+        app.run();
+        return 0;
     } catch (const std::exception& e) {
         std::cerr << e.what() << "\n";
     } catch (...) {

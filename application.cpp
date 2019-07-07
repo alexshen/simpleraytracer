@@ -4,15 +4,17 @@
 #include <glad/glad.h>
 #include <iostream>
 #include <cassert>
+#include <stdexcept>
+#include <string>
 
 namespace 
 {
     const char* const AppName = "raytracer";
 }
 
-Application::Application()
-    : m_window(nullptr)
+Application::Application(const RenderConfig& config)
 {
+    init(config);
 }
 
 Application::~Application()
@@ -20,11 +22,10 @@ Application::~Application()
     glfwTerminate();
 }
 
-bool Application::init(const RenderConfig& config)
+void Application::init(const RenderConfig& config)
 {
     if (!glfwInit()) {
-        std::cerr << "failed to initialize glfw\n";
-        return false;
+        throw std::runtime_error("failed to initialize glfw");
     }
 
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -46,22 +47,19 @@ bool Application::init(const RenderConfig& config)
     if (!m_window) {
         const char* error;
         glfwGetError(&error);
-        std::cerr << "failed to create the app window: " << error << "\n";
-        return false;
+        throw std::runtime_error(std::string("failed to create the app window: ") + error);
     }
     glfwMakeContextCurrent(m_window);
     glfwSetKeyCallback(m_window, onKeyPressedCallback);
     glfwSetWindowUserPointer(m_window, this);
     
     if (!ogl_LoadFunctions()) {
-        std::cerr << "failed to load ogl\n";
-        return false;
+        throw std::runtime_error("failed to load ogl");
     }
 
     if (config.shaderInput == ShaderInput::ShaderStorageBuffer && 
         !glfwExtensionSupported("GL_ARB_shader_storage_buffer_object")) {
-        std::cerr << "ssbo input is not supported" << std::endl;
-        return false;
+        throw std::runtime_error("ssbo input is not supported");
     }
 
 #ifndef __APPLE__
@@ -77,7 +75,6 @@ bool Application::init(const RenderConfig& config)
     glfwGetFramebufferSize(m_window, &tmpConfig.width, &tmpConfig.height);
     glViewport(0, 0, tmpConfig.width, tmpConfig.height);
     m_renderer = std::make_unique<Renderer>(tmpConfig);
-    return true;
 }
 
 void Application::run()
