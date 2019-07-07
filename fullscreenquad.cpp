@@ -13,10 +13,6 @@ FullScreenQuad::FullScreenQuad()
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);;
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    auto buffer = glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-    std::memcpy(buffer, vertices, sizeof(vertices));
-    glUnmapBuffer(GL_ARRAY_BUFFER);
-
     glGenVertexArrays(1, &m_vao);
     glBindVertexArray(m_vao);
     glEnableVertexAttribArray(0);
