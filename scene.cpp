@@ -2,6 +2,45 @@
 #include "utils.h"
 
 #include <glm/glm.hpp>
+#include <cassert>
+
+namespace 
+{
+
+int flatten(const bvh_node* root, SceneBuffer& buffer)
+{
+    if (!root) {
+        return -1;
+    }
+
+    int index = (int)buffer.nodes.size();
+    buffer.nodes.emplace_back();
+    Node curNode;
+    curNode.min = root->get_aabb().min;
+    curNode.max = root->get_aabb().max;
+    curNode.firstObjIndex = (int)buffer.objects.size();
+    curNode.numObj = root->num_objects();
+
+    for (int i = 0; i < root->num_objects(); ++i) {
+        auto obj = static_cast<const SphereObject*>(root->get_object(i));
+        auto& target = buffer.objects.emplace_back();
+        target.center = obj->center;
+        target.radius = obj->radius;
+
+        auto& mat = buffer.materials.emplace_back();
+        mat.albedo = obj->albedo;
+        mat.type = static_cast<float>(obj->type);
+        mat.prop = obj->prop;
+    }
+
+    curNode.left = flatten(root->left(), buffer);
+    curNode.right = flatten(root->right(), buffer);
+    buffer.nodes[index] = curNode;
+
+    return index;
+}
+
+} // anonymous namespace
 
 Scene createScene()
 {
@@ -47,4 +86,9 @@ Scene createScene()
     }
     scene.root = std::make_unique<bvh_node>(objects.data(), objects.size());
     return scene;
+}
+
+SceneBuffer::SceneBuffer(const Scene& scene)
+{
+    flatten(scene.root.get(), *this);
 }

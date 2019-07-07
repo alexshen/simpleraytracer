@@ -7,7 +7,6 @@
 #include <glad/glad.h>
 
 struct Scene;
-class bvh_node;
 
 class TextureRenderInput : public RenderInput
 {
