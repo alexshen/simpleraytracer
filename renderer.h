@@ -9,6 +9,7 @@
 
 #include <glm/glm.hpp>
 #include <memory>
+#include <functional>
 
 class RenderInput;
 
@@ -51,9 +52,12 @@ struct RenderConfig
 class Renderer
 {
 public:
+    using renderComplete_t = std::function<void()>;
+
     Renderer(const RenderConfig& config);
     ~Renderer();
 
+    void onRenderComplete(const renderComplete_t& cb);
     void render();
 private:
     void init(const RenderConfig& config);
@@ -81,6 +85,8 @@ private:
 
     GLuint m_timeQuery;
     bool m_queryEnded;
+
+    renderComplete_t m_onRenderComplete;
 };
 
 #endif // FS_RENDERER_H

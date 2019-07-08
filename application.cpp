@@ -80,6 +80,8 @@ void Application::init(const RenderConfig& config)
     glfwGetFramebufferSize(m_window, &tmpConfig.width, &tmpConfig.height);
     glViewport(0, 0, tmpConfig.width, tmpConfig.height);
     m_renderer = std::make_unique<Renderer>(tmpConfig);
+    m_renderer->onRenderComplete([&] { onRenderComplete(); });
+    glfwSwapInterval(0);
 }
 
 void Application::run()
@@ -126,4 +128,9 @@ void Application::onKeyPressed(int key, int action)
     if (key == GLFW_KEY_ESCAPE) {
         glfwSetWindowShouldClose(m_window, GLFW_TRUE);
     }
+}
+
+void Application::onRenderComplete()
+{
+    glfwSwapInterval(1);
 }

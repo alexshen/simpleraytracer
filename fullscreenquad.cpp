@@ -1,5 +1,4 @@
 #include "fullscreenquad.h"
-#include "glslprogram.h"
 #include <cstring>
 
 FullScreenQuad::FullScreenQuad()
@@ -41,10 +40,8 @@ FullScreenQuad::~FullScreenQuad()
     glDeleteBuffers(1, &m_vboTexCoord);
 }
 
-void FullScreenQuad::render(GLSLProgram& prog)
+void FullScreenQuad::render()
 {
-    prog.setUniform("MVP", glm::mat4(1.0f));
-
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);

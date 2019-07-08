@@ -15,7 +15,7 @@ public:
 
     FullScreenQuad(FullScreenQuad&) = delete;
 
-    void render(GLSLProgram& prog);
+    void render();
 private:
     GLuint m_vao;
     GLuint m_vboVertices;

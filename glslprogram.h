@@ -54,6 +54,8 @@ public:
     ~GLSLProgram();
 
     void define(const char* def);
+    void define(const std::string& def);
+
     void overrideVersion(int version);
 
     void compileShader(const char *fileName);

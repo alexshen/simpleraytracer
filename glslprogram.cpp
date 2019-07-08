@@ -56,7 +56,12 @@ GLSLProgram::~GLSLProgram() {
 
 void GLSLProgram::define(const char* def)
 {
-    defines.push_back(def);
+    defines.emplace_back(def);
+}
+
+void GLSLProgram::define(const std::string& def)
+{
+    defines.emplace_back(def);
 }
 
 void GLSLProgram::overrideVersion(int version)

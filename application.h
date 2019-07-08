@@ -20,6 +20,7 @@ public:
     void run();
 private:
     void init(const RenderConfig& config);
+    void onRenderComplete();
 
     static void onKeyPressedCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     void onKeyPressed(int key, int action);

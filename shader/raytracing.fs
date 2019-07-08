@@ -98,17 +98,26 @@ vec2 fragCoord()
 }
 
 #else // FRAGMENT_SHADER
-layout(local_size_x = 64, local_size_y = 64) in;
-layout(rgba16, binding = 0) uniform image2D OutImage;
 
-void writeColor(vec4 color)
-{
-    imageStore(OutImage, gl_GlobalInvocationID.xy, color);
-}
+#ifndef KERNEL_SIZE
+#  define KERNEL_SIZE 16
+#endif
+
+layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE) in;
+#ifdef BLOCK_REFINE
+layout(rgba8, binding = 0) uniform image2D OutImage;
+#else
+layout(rgba16, binding = 0) uniform image2D OutImage;
+#endif
 
 vec2 fragCoord()
 {
     return gl_GlobalInvocationID.xy + Window.xy;
+}
+
+void writeColor(vec4 color)
+{
+    imageStore(OutImage, ivec2(fragCoord()), color);
 }
 
 #endif // !FRAGMENT_SHADER
@@ -423,16 +432,11 @@ void main()
 
 #ifdef BLOCK_REFINE
     g_seed = 0;
-    vec2 coord = fragCoord();
-    if (all(greaterThanEqual(coord.xy, Window.xy)) && all(lessThan(coord.xy, Window.zw))) {
-        for (int i = 0; i < NumSamples; ++i) {
-            color += raytrace(randomInUnitRect());
-        }
-
-        writeColor(vec4(color / NumSamples, 1));
-    } else {
-        discard;
+    for (int i = 0; i < NumSamples; ++i) {
+        color += raytrace(randomInUnitRect());
     }
+
+    writeColor(vec4(color / NumSamples, 1));
 #else // !BLOCK_REFINE
     g_seed = IterStart * 17 + IterNum;;
     int iterEnd = min(NumSamples, IterStart + IterNum);
@@ -443,7 +447,7 @@ void main()
     color /= NumSamples;
 #  ifdef COMPUTE_SHADER
     // blend with the existing color
-    color += imageLoad(OutImage, gl_GlobalInvocationID.xy).xyz;
+    color += imageLoad(OutImage, ivec2(fragCoord())).xyz;
 #  endif
     writeColor(vec4(color, 1));
 #endif // !BLOCK_REFINE
