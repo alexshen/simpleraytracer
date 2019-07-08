@@ -17,15 +17,6 @@ uniform int NumSpheres;
 uniform int IterStart;
 uniform int IterNum;
 
-#ifdef TEXTURE_INPUT
-
-uniform sampler1D NodeAABBTex;
-uniform isampler1D NodeDataTex;
-uniform sampler1D ObjectTex;
-uniform sampler1D MaterialTex;
-
-#endif
-
 const float Infinity = intBitsToFloat(0x7f800000);
 
 // Material types
@@ -38,13 +29,16 @@ struct AABB {
     vec4 max;
 };
 
-struct Node {
-    AABB aabb;
-
+struct NodeData {
     int left;
     int right;
     int firstObjIndex;
     int numObjects;
+};
+
+struct Node {
+    AABB aabb;
+    NodeData data;
 };
 
 struct Material {
@@ -57,7 +51,39 @@ struct Material {
     float prop;
 };
 
-#if defined(UBO_INPUT)
+#ifdef TEXTURE_INPUT
+
+uniform sampler1D NodeAABBTex;
+uniform isampler1D NodeDataTex;
+uniform sampler1D ObjectTex;
+uniform sampler1D MaterialTex;
+
+vec4 getSphere(int i)
+{
+    return texelFetch(ObjectTex, i, 0);
+}
+
+Material getMaterial(int i)
+{
+    return Material(
+        texelFetch(MaterialTex, i * 2, 0),
+        texelFetch(MaterialTex, i * 2 + 1, 0).x);
+}
+
+AABB getAABB(int i)
+{
+    return AABB(texelFetch(NodeAABBTex, i * 2, 0),
+                texelFetch(NodeAABBTex, i * 2 + 1, 0));
+}
+
+NodeData getNodeData(int i)
+{
+    ivec4 data = texelFetch(NodeDataTex, stack[i], 0);
+    return NodeData(data.x, data.y, data.z, data.w);
+}
+
+#else
+#  if defined(UBO_INPUT)
 
 const int MaxObjects = 512;
 const int MaxNodes = 640;
@@ -83,6 +109,27 @@ layout(std430, binding = 2) buffer MaterialBuffer {
 };
 
 #endif // SSBO_INPUT
+
+vec4 getSphere(int i)
+{
+    return spheres[i];
+}
+
+Material getMaterial(int i)
+{
+    return materials[i];
+}
+
+AABB getAABB(int i)
+{
+    return nodes[i].aabb;
+}
+
+NodeData getNodeData(int i)
+{
+    return nodes[i].data;
+}
+#endif
 
 #ifdef FRAGMENT_SHADER
 layout(location = 0) out vec4 FragColor;
@@ -231,10 +278,9 @@ int[MaxIndices] findPossibleHits(Ray ray, float tmin, float tmax, out int num)
 
     while (i > 0) {
         --i;
-#if defined(UBO_INPUT) || defined(SSBO_INPUT)
-        Node node = nodes[stack[i]];
-        if (intersect(ray, node.aabb, tmin, tmax)) {
+        if (intersect(ray, getAABB(stack[i]), tmin, tmax)) {
             // leaf node
+            NodeData node = getNodeData(stack[i]);
             if (node.left == -1) {
                 for (int j = 0; j < node.numObjects; ++j) {
                     hits[num++] = node.firstObjIndex + j;
@@ -244,22 +290,6 @@ int[MaxIndices] findPossibleHits(Ray ray, float tmin, float tmax, out int num)
                 stack[i++] = node.left;
             }
         }
-#else
-        vec4 bbmin = texelFetch(NodeAABBTex, stack[i] * 2, 0);
-        vec4 bbmax = texelFetch(NodeAABBTex, stack[i] * 2 + 1, 0);
-        if (intersect(ray, AABB(bbmin, bbmax), tmin, tmax)) {
-            ivec4 nodeData = texelFetch(NodeDataTex, stack[i], 0);
-            // leaf node
-            if (nodeData.x == -1) {
-                for (int j = 0; j < nodeData.w; ++j) {
-                    hits[num++] = nodeData.z + j;
-                }
-            } else {
-                stack[i++] = nodeData.x;
-                stack[i++] = nodeData.y;
-            }
-        }
-#endif
     }
     return hits;
 }
@@ -270,7 +300,7 @@ bool hit(Ray ray, float tmin, float tmax, out HitRecord rec)
     float minT = Infinity;
 #ifdef BRUTE_FORCE_HIT_TEST
     for (int i = 0; i < NumSpheres; ++i) {
-        float t = intersectSphere(spheres[i], ray, tmin, tmax);
+        float t = intersectSphere(getSphere(i), ray, tmin, tmax);
         if (t != -1 && minT > t) {
             minT = t;
             sphereIndex = i;
@@ -280,12 +310,7 @@ bool hit(Ray ray, float tmin, float tmax, out HitRecord rec)
     int num;
     int hits[MaxIndices] = findPossibleHits(ray, tmin, tmax, num);
     for (int i = 0; i < num; ++i) {
-#  if defined(UBO_INPUT) || defined(SSBO_INPUT)
-        vec4 sphere = spheres[hits[i]];
-#  else
-        vec4 sphere = texelFetch(ObjectTex, hits[i], 0);
-#  endif
-        float t = intersectSphere(sphere, ray, tmin, tmax);
+        float t = intersectSphere(getSphere(hits[i]), ray, tmin, tmax);
         if (t != -1 && minT > t) {
             minT = t;
             sphereIndex = hits[i];
@@ -294,16 +319,8 @@ bool hit(Ray ray, float tmin, float tmax, out HitRecord rec)
 #endif
     if (sphereIndex != -1) {
         rec.pt = ray.origin + minT * ray.dir;
-#if defined(UBO_INPUT) || defined(SSBO_INPUT)
-        rec.normal = normalize(rec.pt - spheres[sphereIndex].xyz);
-        rec.material = materials[sphereIndex];
-#else
-        rec.normal = normalize(rec.pt - texelFetch(ObjectTex, sphereIndex, 0).xyz);
-        rec.material = Material(
-            texelFetch(MaterialTex, sphereIndex * 2, 0),
-            texelFetch(MaterialTex, sphereIndex * 2 + 1, 0).x
-        );
-#endif
+        rec.normal = normalize(rec.pt - getSphere(sphereIndex).xyz);
+        rec.material = getMaterial(sphereIndex);
         return true;
     }
     return false;
