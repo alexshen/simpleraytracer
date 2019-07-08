@@ -78,7 +78,7 @@ AABB getAABB(int i)
 
 NodeData getNodeData(int i)
 {
-    ivec4 data = texelFetch(NodeDataTex, stack[i], 0);
+    ivec4 data = texelFetch(NodeDataTex, i, 0);
     return NodeData(data.x, data.y, data.z, data.w);
 }
 
